@@ -1,6 +1,9 @@
 class User < ApplicationRecord
   has_secure_password
 
+  has_many :following_relationships, foreign_key: :follower_id, dependent: :destroy
+  has_many :followed_users, through: :following_relationships, source: :followed_user
+
   validates :name, presence: true
   validates :email, presence: true, uniqueness: { case_sensitive: false }
   validates :password_digest, presence: true
@@ -19,5 +22,21 @@ class User < ApplicationRecord
     else
       return false
     end
+  end
+
+  def follow(other_user)
+    unless following?(other_user)
+      following_relationships.create(followed_user: other_user)
+    end
+  end
+
+  def unfollow(other_user)
+    if following?(other_user)
+      following_relationships.find_by(followed_user: other_user).destroy
+    end
+  end
+
+  def following?(other_user)
+    followed_users.include?(other_user)
   end
 end
