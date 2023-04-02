@@ -6,6 +6,9 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       post '/login', to: 'sessions#create'
+
+      post '/following/:id', to: 'following#create'
+      delete '/following/:id', to: 'following#destroy'
     end
   end
 end
