@@ -3,6 +3,7 @@ class User < ApplicationRecord
 
   has_many :following_relationships, foreign_key: :follower_id, dependent: :destroy
   has_many :followed_users, through: :following_relationships, source: :followed_user
+  has_many :sleep_records
 
   validates :name, presence: true
   validates :email, presence: true, uniqueness: { case_sensitive: false }

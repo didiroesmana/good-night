@@ -7,8 +7,8 @@ Rails.application.routes.draw do
     namespace :v1 do
       post '/login', to: 'sessions#create'
 
-      post '/following/:id', to: 'following#create'
-      delete '/following/:id', to: 'following#destroy'
+      resources :sleep_records, only: [:create, :index]
+      resources :following, only: [:create, :destroy]
     end
   end
 end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2023_04_02_104238) do
+ActiveRecord::Schema[7.0].define(version: 2023_04_02_124911) do
   create_table "following_relationships", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
     t.bigint "follower_id", null: false
     t.bigint "followed_user_id", null: false
@@ -18,6 +18,17 @@ ActiveRecord::Schema[7.0].define(version: 2023_04_02_104238) do
     t.datetime "updated_at", null: false
     t.index ["followed_user_id"], name: "index_following_relationships_on_followed_user_id"
     t.index ["follower_id"], name: "index_following_relationships_on_follower_id"
+  end
+
+  create_table "sleep_records", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.datetime "bed_time", null: false
+    t.datetime "wake_time", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "bed_time"], name: "index_sleep_records_on_user_id_and_bed_time"
+    t.index ["user_id", "wake_time"], name: "index_sleep_records_on_user_id_and_wake_time"
+    t.index ["user_id"], name: "index_sleep_records_on_user_id"
   end
 
   create_table "users", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
@@ -31,4 +42,5 @@ ActiveRecord::Schema[7.0].define(version: 2023_04_02_104238) do
 
   add_foreign_key "following_relationships", "users", column: "followed_user_id"
   add_foreign_key "following_relationships", "users", column: "follower_id"
+  add_foreign_key "sleep_records", "users"
 end
