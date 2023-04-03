@@ -7,6 +7,7 @@ Rails.application.routes.draw do
     namespace :v1 do
       post '/login', to: 'sessions#create'
 
+      get '/my_sleep_records', to: 'sleep_records#my_sleep_records'
       resources :sleep_records, only: [:create, :index]
       resources :following, only: [:create, :destroy]
     end

@@ -48,6 +48,62 @@ describe Api::V1::SleepRecordsController, type: :controller do
     end
   end
 
+  describe "GET #my_sleep_records" do
+    let(:user) { create(:user) }
+    let!(:sleep_record1) { create(:sleep_record, user: user, bed_time: 3.days.ago , wake_time: 3.days.ago + 4.hours, created_at: 3.days.ago) }
+    let!(:sleep_record2) { create(:sleep_record, user: user, bed_time: 1.days.ago , wake_time: 1.days.ago + 5.hours, created_at: 1.day.ago) }
+    let(:headers) { { "Authorization": "Bearer #{user.api_token}" } }
+
+    before do
+      request.headers.merge!(headers)
+      get :my_sleep_records
+    end
+
+    it "returns HTTP success status" do
+      expect(response).to have_http_status(:ok)
+    end
+
+    it "returns sleep records for the current user" do
+      expect(response_body[:data]).to include(
+        {
+          bed_time: sleep_record1.bed_time.iso8601(3),
+          wake_time: sleep_record1.wake_time.iso8601(3),
+          created_at: sleep_record1.created_at.iso8601(3),
+          sleep_length: sleep_record1.sleep_length,
+          user: {
+            id: user.id,
+            name: user.name,
+          }
+        },
+      )
+    end
+
+    it "returns sleep records in descending order of creation" do
+      expect(response_body[:data]).to eq([
+        {
+          bed_time: sleep_record2.bed_time.iso8601(3),
+          wake_time: sleep_record2.wake_time.iso8601(3),
+          created_at: sleep_record2.created_at.iso8601(3),
+          sleep_length: sleep_record2.sleep_length,
+          user: {
+            id: user.id,
+            name: user.name,
+          }
+        },
+        {
+          bed_time: sleep_record1.bed_time.iso8601(3),
+          wake_time: sleep_record1.wake_time.iso8601(3),
+          created_at: sleep_record1.created_at.iso8601(3),
+          sleep_length: sleep_record1.sleep_length,
+          user: {
+            id: user.id,
+            name: user.name,
+          }
+        },
+      ])
+    end
+  end
+
   describe "GET #index" do
     let(:user) { create(:user) }
     let(:friend) { create(:user) }

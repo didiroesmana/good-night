@@ -1,12 +1,17 @@
 class Api::V1::SleepRecordsController < Api::V1::BaseController
   def create
-    @sleep_record = current_user.sleep_records.build(sleep_record_params)
+    sleep_record = current_user.sleep_records.build(sleep_record_params)
 
-    if @sleep_record.save
-      render json: @sleep_record, status: :created
+    if sleep_record.save
+      render json: { data: ActiveModelSerializers::SerializableResource.new(sleep_record, each_serializer: Api::V1::SleepRecordSerializer).as_json }, status: :created
     else
-      render json: { errors: @sleep_record.errors.full_messages }, status: :unprocessable_entity
+      render json: { errors: sleep_record.errors.full_messages }, status: :unprocessable_entity
     end
+  end
+
+  def my_sleep_records
+    sleep_records = current_user.sleep_records.order(created_at: :desc)
+    render json: { data: ActiveModelSerializers::SerializableResource.new(sleep_records, each_serializer: Api::V1::SleepRecordSerializer) }, status: :ok
   end
 
   def index
