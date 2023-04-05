@@ -1,8 +1,8 @@
 describe Api::V1::SleepRecordsController, type: :controller do
   describe "POST #create" do
     let(:user) { create(:user) }
-    let(:valid_params) { { sleep_record: { bed_time: Time.current, wake_time: Time.current + 8.hours } } }
-    let(:invalid_params) { { sleep_record: { bed_time: Time.current, wake_time: Time.current - 4.hours } } }
+    let(:valid_params) { { sleep_record: { bed_time: Time.current } } }
+    let(:invalid_params) { { sleep_record: { wake_time: Time.current } } }
     let(:headers) { { "Authorization": "Bearer #{user.api_token}" } }
 
     context "when user is authenticated" do
@@ -28,14 +28,32 @@ describe Api::V1::SleepRecordsController, type: :controller do
           }.not_to change(SleepRecord, :count)
         end
 
-        it "returns status code 422" do
+        it "returns status code 400" do
           post :create, params: invalid_params
-          expect(response).to have_http_status(422)
+          expect(response).to have_http_status(400)
         end
+      end
 
+      context "user already finish record wake_time" do
+        it "should be able create record for same day" do
+          sleep_record = create(:sleep_record, user: user)
+          latest_bed_time = sleep_record.wake_time + 2.minutes
+
+          valid_params[:sleep_record][:bed_time] = latest_bed_time
+          expect {
+            post :create, params: valid_params
+          }.to change(SleepRecord, :count).by(1)
+
+          latest_sleep_record = SleepRecord.last
+          expect(latest_sleep_record.bed_time).to eq(latest_bed_time)
+        end
+      end
+
+      context "user already have bed_time recorded" do
         it "returns a validation error message" do
-          post :create, params: invalid_params
-          expect(response_body[:errors][0]).to eq("Bedtime must be before wake_time")
+          create(:sleep_record, user: user, bed_time: Time.now, wake_time: nil)
+          post :create, params: valid_params
+          expect(response_body[:errors][0]).to eq("Cannot create a new sleep record while the previous one is still not recorded.")
         end
       end
     end
@@ -43,7 +61,59 @@ describe Api::V1::SleepRecordsController, type: :controller do
     context "when user is not authenticated" do
       it "returns status code 401" do
         post :create, params: valid_params
-        expect(response).to have_http_status(401)
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+  end
+
+  describe "PUT #update" do
+    let(:user) { create(:user) }
+    let(:sleep_record) { create(:sleep_record, user: user, wake_time: nil) }
+    let(:wake_time) { sleep_record.bed_time + 8.hours }
+    let(:headers) { { "Authorization": "Bearer #{user.api_token}" } }
+    let(:valid_params) {
+      {
+        id: sleep_record.id,
+        sleep_record: {
+          wake_time: wake_time
+        },
+      }
+    }
+
+    let(:invalid_params) {
+      {
+        id: "not-valid-record",
+        sleep_record: {
+          invalid_propery: wake_time
+        },
+      }
+    }
+
+    context "when user is authenticated" do
+      before { request.headers.merge!(headers) }
+
+      context "with valid params" do
+        it "update the sleep record" do
+          put :update, params: valid_params
+          expect(sleep_record.reload.wake_time).to be_truthy
+          expect(sleep_record.sleep_length).to be_truthy
+        end
+      end
+
+      context "with invalid params" do
+        it "does not update sleep record" do
+          expect do
+            invalid_params[:id] = sleep_record.id
+            put :update, params: invalid_params
+          end.not_to change(sleep_record.reload, :wake_time)
+        end
+      end
+    end
+
+    context "when user is not authenticated" do
+      it "returns status code 401" do
+        put :update, params: valid_params
+        expect(response).to have_http_status(:unauthorized)
       end
     end
   end
@@ -51,7 +121,8 @@ describe Api::V1::SleepRecordsController, type: :controller do
   describe "GET #my_sleep_records" do
     let(:user) { create(:user) }
     let!(:sleep_record1) { create(:sleep_record, user: user, bed_time: 3.days.ago , wake_time: 3.days.ago + 4.hours, created_at: 3.days.ago) }
-    let!(:sleep_record2) { create(:sleep_record, user: user, bed_time: 1.days.ago , wake_time: 1.days.ago + 5.hours, created_at: 1.day.ago) }
+    let!(:sleep_record2) { create(:sleep_record, user: user, bed_time: 2.days.ago , wake_time: 2.days.ago + 5.hours, created_at: 2.day.ago) }
+    let!(:sleep_record3) { create(:sleep_record, user: user, bed_time: Time.now , wake_time: nil) }
     let(:headers) { { "Authorization": "Bearer #{user.api_token}" } }
 
     before do
@@ -81,6 +152,16 @@ describe Api::V1::SleepRecordsController, type: :controller do
     it "returns sleep records in descending order of creation" do
       expect(response_body[:data]).to eq([
         {
+          bed_time: sleep_record3.bed_time.iso8601(3),
+          wake_time: nil,
+          created_at: sleep_record3.created_at.iso8601(3),
+          sleep_length: sleep_record3.sleep_length,
+          user: {
+            id: user.id,
+            name: user.name,
+          }
+        },
+        {
           bed_time: sleep_record2.bed_time.iso8601(3),
           wake_time: sleep_record2.wake_time.iso8601(3),
           created_at: sleep_record2.created_at.iso8601(3),
@@ -102,6 +183,14 @@ describe Api::V1::SleepRecordsController, type: :controller do
         },
       ])
     end
+    
+    context "when user is not authenticated" do
+      it "returns status code 401" do
+        request.headers.merge!({ "Authorization": "Bearer invalid-token" })
+        get :my_sleep_records
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
   end
 
   describe "GET #index" do
@@ -117,7 +206,8 @@ describe Api::V1::SleepRecordsController, type: :controller do
       user.follow(friend2)
       create(:sleep_record, user: friend)
       create(:sleep_record, user: friend3)
-      create(:sleep_record, user: friend2, wake_time: Time.current + 1.hours)
+      create(:sleep_record, user: friend2, bed_time: 1.day.ago, wake_time: 1.day.ago + 1.hours)
+      create(:sleep_record, user: friend2, bed_time: 7.hours.ago, wake_time: nil)
       request.headers.merge!(headers)
     end
 

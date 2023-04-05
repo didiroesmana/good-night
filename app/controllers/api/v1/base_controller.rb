@@ -4,9 +4,7 @@ class Api::V1::BaseController < ApplicationController
   private
 
   def authenticate
-    unless current_user
-      render json: { error: 'Unauthorized' }, status: :unauthorized
-    end
+    raise AuthenticationError::Unauthorized unless current_user
   end
 
   def current_user
