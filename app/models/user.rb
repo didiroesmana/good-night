@@ -26,15 +26,11 @@ class User < ApplicationRecord
   end
 
   def follow(other_user)
-    unless following?(other_user)
-      following_relationships.create(followed_user: other_user)
-    end
+    following_relationships.create(followed_user: other_user) unless following?(other_user)
   end
 
   def unfollow(other_user)
-    if following?(other_user)
-      following_relationships.find_by(followed_user: other_user).destroy
-    end
+    following_relationships.find_by(followed_user: other_user).destroy if following?(other_user)
   end
 
   def following?(other_user)
