@@ -18,6 +18,9 @@ describe Api::V1::SleepRecordsController, type: :controller do
         it "returns status code 201" do
           post :create, params: valid_params
           expect(response).to have_http_status(201)
+
+          sleep_record = user.sleep_records.last
+          expect(response_body[:data][:user][:name]).to eq(user.name)
         end
       end
 
@@ -54,6 +57,12 @@ describe Api::V1::SleepRecordsController, type: :controller do
           create(:sleep_record, user: user, bed_time: Time.now, wake_time: nil)
           post :create, params: valid_params
           expect(response_body[:errors][0]).to eq("Cannot create a new sleep record while the previous one is still not recorded.")
+        end
+
+        it "should not be able to record overlap data" do
+          create(:sleep_record, user: user, bed_time: 1.hour.ago)
+          post :create, params: valid_params
+          expect(response_body[:errors][0]).to eq("Bed time cannot overlap with an existing sleep record.")
         end
       end
     end

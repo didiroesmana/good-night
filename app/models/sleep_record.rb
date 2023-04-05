@@ -4,6 +4,7 @@ class SleepRecord < ApplicationRecord
   validates :bed_time, presence: true
 
   validate :cannot_create_record_if_previous_wake_time_null, on: :create
+  validate :no_overlap, on: :create
 
   def sleep_length
     return 0 if wake_time.nil?
@@ -15,6 +16,15 @@ class SleepRecord < ApplicationRecord
   def cannot_create_record_if_previous_wake_time_null
     if user.sleep_records.where(wake_time: nil).exists?
       errors.add(:base, "Cannot create a new sleep record while the previous one is still not recorded.")
+    end
+  end
+
+  def no_overlap
+    if user && bed_time
+      overlaps = user.sleep_records.where.not(id: id).where("(? BETWEEN bed_time AND wake_time)", bed_time)
+      if overlaps.any?
+        errors.add(:bed_time, "cannot overlap with an existing sleep record.")
+      end
     end
   end
 end
